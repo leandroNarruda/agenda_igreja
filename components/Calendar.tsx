@@ -1,22 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import ReactCalendar from "react-calendar";
 import type { TileArgs } from "react-calendar";
-import { getEntryByDate, isAllowedDay, AGENDA_MOCK } from "@/lib/agenda";
+import { isAllowedDay, toLocalDateString } from "@/lib/agenda";
+import type { AgendaEntry } from "@/lib/agenda";
 import DayModal from "./DayModal";
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
-
-const scheduledDates = new Set(AGENDA_MOCK.map((e) => e.date));
-
-function toLocalDateString(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -25,11 +18,42 @@ export default function Calendar() {
   const [activeStartDate, setActiveStartDate] = useState<Date>(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
+  const [entry, setEntry] = useState<AgendaEntry | null | undefined>(undefined);
+  const [scheduledDates, setScheduledDates] = useState<Set<string>>(new Set());
 
-  function handleDayClick(date: Date) {
+  useEffect(() => {
+    const year = activeStartDate.getFullYear();
+    const month = String(activeStartDate.getMonth() + 1).padStart(2, "0");
+    fetch(`/api/agenda/month?year=${year}&month=${month}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((entries: AgendaEntry[]) => {
+        setScheduledDates(new Set(entries.map((e) => e.date)));
+      })
+      .catch(() => setScheduledDates(new Set()));
+  }, [activeStartDate]);
+
+  async function handleDayClick(date: Date) {
     if (!isAllowedDay(date)) return;
     setSelectedDate(date);
+    setEntry(undefined);
     setIsModalOpen(true);
+
+    const res = await fetch(`/api/agenda?date=${toLocalDateString(date)}`);
+    setEntry(res.ok ? await res.json() : null);
+  }
+
+  function handleSave(saved: AgendaEntry) {
+    setScheduledDates((prev) => new Set([...prev, saved.date]));
+    setIsModalOpen(false);
+  }
+
+  function handleDelete(date: string) {
+    setScheduledDates((prev) => {
+      const next = new Set(prev);
+      next.delete(date);
+      return next;
+    });
+    setIsModalOpen(false);
   }
 
   function isCurrentMonth(date: Date): boolean {
@@ -50,7 +74,7 @@ export default function Calendar() {
     const key = toLocalDateString(date);
     if (!scheduledDates.has(key)) return null;
     return (
-      <span className="block w-1.5 h-1.5 rounded-full bg-blue-500 mx-auto mt-0.5" />
+      <span className="block w-2 h-2 rounded-full mx-auto mt-0.5" style={{ background: "#f8a13f", boxShadow: "0 0 6px rgba(248,161,63,0.7)" }} />
     );
   }
 
@@ -60,11 +84,14 @@ export default function Calendar() {
     return "tile-allowed";
   }
 
-  const entry = selectedDate ? getEntryByDate(selectedDate) : undefined;
-
   return (
     <>
-      <div className="calendar-wrapper">
+      <motion.div
+        className="calendar-wrapper"
+        initial={{ opacity: 0, scale: 0.96, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: "easeOut", delay: 0.1 }}
+      >
         <ReactCalendar
           value={value}
           onChange={setValue}
@@ -80,15 +107,19 @@ export default function Calendar() {
           next2Label={null}
           prev2Label={null}
         />
-      </div>
+      </motion.div>
 
-      {isModalOpen && (
-        <DayModal
-          date={selectedDate}
-          entry={entry}
-          onClose={() => setIsModalOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isModalOpen && (
+          <DayModal
+            date={selectedDate}
+            entry={entry}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSave}
+            onDelete={handleDelete}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
