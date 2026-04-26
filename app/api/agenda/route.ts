@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import type { AgendaEntry } from "@/lib/agenda";
+import { auth } from "@/auth";
 
 async function getCollection() {
   const client = await clientPromise;
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session) return new NextResponse(null, { status: 401 });
+
   const date = req.nextUrl.searchParams.get("date");
   if (!date) return NextResponse.json({ error: "Parâmetro 'date' obrigatório" }, { status: 400 });
   const col = await getCollection();
@@ -29,6 +33,9 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session) return new NextResponse(null, { status: 401 });
+
   const body: AgendaEntry = await req.json();
   if (!body.date || !body.preacher || !body.service) {
     return NextResponse.json({ error: "Campos obrigatórios: date, preacher, service" }, { status: 400 });

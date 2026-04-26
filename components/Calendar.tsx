@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactCalendar from "react-calendar";
 import type { TileArgs } from "react-calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { isAllowedDay, toLocalDateString } from "@/lib/agenda";
 import type { AgendaEntry } from "@/lib/agenda";
 import DayModal from "./DayModal";
@@ -11,7 +13,14 @@ import DayModal from "./DayModal";
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-export default function Calendar() {
+function formatEntryDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const formatted = format(date, "EEE, d 'de' MMM", { locale: ptBR });
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [value, setValue] = useState<Value>(new Date());
@@ -19,6 +28,7 @@ export default function Calendar() {
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
   const [entry, setEntry] = useState<AgendaEntry | null | undefined>(undefined);
+  const [monthEntries, setMonthEntries] = useState<AgendaEntry[]>([]);
   const [scheduledDates, setScheduledDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -27,9 +37,13 @@ export default function Calendar() {
     fetch(`/api/agenda/month?year=${year}&month=${month}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((entries: AgendaEntry[]) => {
+        setMonthEntries(entries.slice().sort((a, b) => a.date.localeCompare(b.date)));
         setScheduledDates(new Set(entries.map((e) => e.date)));
       })
-      .catch(() => setScheduledDates(new Set()));
+      .catch(() => {
+        setMonthEntries([]);
+        setScheduledDates(new Set());
+      });
   }, [activeStartDate]);
 
   async function handleDayClick(date: Date) {
@@ -44,6 +58,10 @@ export default function Calendar() {
 
   function handleSave(saved: AgendaEntry) {
     setScheduledDates((prev) => new Set([...prev, saved.date]));
+    setMonthEntries((prev) => {
+      const filtered = prev.filter((e) => e.date !== saved.date);
+      return [...filtered, saved].sort((a, b) => a.date.localeCompare(b.date));
+    });
     setIsModalOpen(false);
   }
 
@@ -53,6 +71,7 @@ export default function Calendar() {
       next.delete(date);
       return next;
     });
+    setMonthEntries((prev) => prev.filter((e) => e.date !== date));
     setIsModalOpen(false);
   }
 
@@ -109,11 +128,51 @@ export default function Calendar() {
         />
       </motion.div>
 
+      {/* Lista do mês */}
+      {monthEntries.length > 0 && (
+        <motion.ul
+          className="mt-6 w-full space-y-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.2 }}
+        >
+          {monthEntries.map((e) => (
+            <li
+              key={e.date}
+              onClick={() => {
+                const [y, m, d] = e.date.split("-").map(Number);
+                setSelectedDate(new Date(y, m - 1, d));
+                setEntry(e);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center justify-between px-4 py-3 rounded-2xl cursor-pointer"
+              style={{
+                background: "rgba(126,86,134,0.1)",
+                border: "1px solid rgba(126,86,134,0.2)",
+              }}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-widest truncate" style={{ color: "#f8a13f" }}>
+                  {e.service}
+                </p>
+                <p className="text-sm font-semibold truncate" style={{ color: "#e8f9a2" }}>
+                  {e.preacher}
+                </p>
+              </div>
+              <p className="text-xs shrink-0 ml-4" style={{ color: "rgba(165,170,217,0.55)" }}>
+                {formatEntryDate(e.date)}
+              </p>
+            </li>
+          ))}
+        </motion.ul>
+      )}
+
       <AnimatePresence>
         {isModalOpen && (
           <DayModal
             date={selectedDate}
             entry={entry}
+            isAdmin={isAdmin}
             onClose={() => setIsModalOpen(false)}
             onSave={handleSave}
             onDelete={handleDelete}
