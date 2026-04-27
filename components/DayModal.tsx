@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toLocalDateString, SERVICE_LABELS } from "@/lib/agenda";
 import type { AgendaEntry } from "@/lib/agenda";
+import { useCreateEntry, useDeleteEntry } from "@/hooks/useAgenda";
 
 interface DayModalProps {
   date: Date | null;
@@ -13,8 +14,8 @@ interface DayModalProps {
   isAdmin?: boolean;
   isBlocked?: boolean;
   onClose: () => void;
-  onSave: (entry: AgendaEntry) => void;
-  onDelete: (date: string) => void;
+  onSave: () => void;
+  onDelete: () => void;
 }
 
 type Mode = "view" | "edit" | "confirm-delete";
@@ -24,8 +25,10 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
   const [preacher, setPreacher] = useState("");
   const [serviceValue, setServiceValue] = useState("");
   const [singer, setSinger] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const createEntry = useCreateEntry();
+  const deleteEntry = useDeleteEntry();
+  const saving = createEntry.isPending;
+  const deleting = deleteEntry.isPending;
 
   useEffect(() => {
     if (entry) {
@@ -59,32 +62,19 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
   const isLoading = entry === undefined;
 
-  async function handleSave() {
+  function handleSave() {
     if (!preacher.trim()) return;
-    setSaving(true);
     const body: AgendaEntry = {
       date: dateKey,
       preacher: preacher.trim(),
       service: serviceValue.trim() || service,
       ...(singer.trim() && { singer: singer.trim() }),
     };
-    const res = await fetch("/api/agenda", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setSaving(false);
-    if (res.ok) {
-      const saved = await res.json();
-      onSave(saved);
-    }
+    createEntry.mutate(body, { onSuccess: () => onSave() });
   }
 
-  async function handleDelete() {
-    setDeleting(true);
-    await fetch(`/api/agenda?date=${dateKey}`, { method: "DELETE" });
-    setDeleting(false);
-    onDelete(dateKey);
+  function handleDelete() {
+    deleteEntry.mutate(dateKey, { onSuccess: () => onDelete() });
   }
 
   return (

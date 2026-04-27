@@ -4,31 +4,28 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { signOut } from "next-auth/react";
 import Calendar from "@/components/Calendar";
+import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 
 function SchedulingLimitPanel() {
+  const { data: currentLimit } = useSettings();
+  const updateSettings = useUpdateSettings();
   const [limit, setLimit] = useState("");
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch("/api/settings?key=schedulingLimit")
-      .then((r) => r.json())
-      .then(({ value }: { value: string | null }) => {
-        if (value) setLimit(value);
-      });
-  }, []);
+    if (currentLimit) setLimit(currentLimit);
+  }, [currentLimit]);
 
-  async function handleSave() {
-    setSaving(true);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "schedulingLimit", value: limit || null }),
+  function handleSave() {
+    updateSettings.mutate(limit || "", {
+      onSuccess: () => {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      },
     });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
+
+  const saving = updateSettings.isPending;
 
   return (
     <div

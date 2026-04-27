@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactCalendar from "react-calendar";
 import type { TileArgs } from "react-calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { isAllowedDay, toLocalDateString } from "@/lib/agenda";
-import type { AgendaEntry } from "@/lib/agenda";
 import DayModal from "./DayModal";
+import { useMonthAgenda, useDayEntry } from "@/hooks/useAgenda";
+import { useAgendaRealtime } from "@/hooks/useAgendaRealtime";
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
 function todayInBrasilia(): string {
-  // Brasília é UTC-3 — forçamos o offset para obter YYYY-MM-DD correto às 0h local
   const now = new Date();
   const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const y = brasilia.getFullYear();
@@ -31,64 +31,33 @@ function formatEntryDate(dateStr: string): string {
 }
 
 export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [value, setValue] = useState<Value>(new Date());
   const [activeStartDate, setActiveStartDate] = useState<Date>(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
-  const [entry, setEntry] = useState<AgendaEntry | null | undefined>(undefined);
-  const [selectedDateBlocked, setSelectedDateBlocked] = useState(false);
-  const [monthEntries, setMonthEntries] = useState<AgendaEntry[]>([]);
-  const [scheduledDates, setScheduledDates] = useState<Set<string>>(new Set());
-  const [schedulingLimit, setSchedulingLimit] = useState<string | null>(null);
 
-  useEffect(() => {
-    const year = activeStartDate.getFullYear();
-    const month = String(activeStartDate.getMonth() + 1).padStart(2, "0");
-    fetch(`/api/agenda/month?year=${year}&month=${month}`)
-      .then((r) => (r.ok ? r.json() : { entries: [], schedulingLimit: null }))
-      .then(({ entries, schedulingLimit: limit }: { entries: AgendaEntry[]; schedulingLimit: string | null }) => {
-        setMonthEntries(entries.slice().sort((a, b) => a.date.localeCompare(b.date)));
-        setScheduledDates(new Set(entries.map((e) => e.date)));
-        setSchedulingLimit(limit);
-      })
-      .catch(() => {
-        setMonthEntries([]);
-        setScheduledDates(new Set());
-        setSchedulingLimit(null);
-      });
-  }, [activeStartDate]);
+  const year = activeStartDate.getFullYear();
+  const month = activeStartDate.getMonth() + 1;
 
-  async function handleDayClick(date: Date) {
+  useAgendaRealtime();
+
+  const { data: monthData } = useMonthAgenda(year, month);
+  const monthEntries = (monthData?.entries ?? []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const scheduledDates = new Set(monthEntries.map((e) => e.date));
+  const schedulingLimit = monthData?.schedulingLimit ?? null;
+
+  const { data: dayEntry, isLoading: isDayLoading } = useDayEntry(isModalOpen ? selectedDateStr : null);
+
+  function isDateBlocked(dateStr: string): boolean {
+    return !!schedulingLimit && dateStr > schedulingLimit;
+  }
+
+  function handleDayClick(date: Date) {
     if (!isAllowedDay(date)) return;
-    const dateStr = toLocalDateString(date);
-    setSelectedDate(date);
-    setSelectedDateBlocked(isDateBlocked(dateStr));
-    setEntry(undefined);
+    setSelectedDateStr(toLocalDateString(date));
     setIsModalOpen(true);
-
-    const res = await fetch(`/api/agenda?date=${dateStr}`);
-    setEntry(res.ok ? await res.json() : null);
-  }
-
-  function handleSave(saved: AgendaEntry) {
-    setScheduledDates((prev) => new Set([...prev, saved.date]));
-    setMonthEntries((prev) => {
-      const filtered = prev.filter((e) => e.date !== saved.date);
-      return [...filtered, saved].sort((a, b) => a.date.localeCompare(b.date));
-    });
-    setIsModalOpen(false);
-  }
-
-  function handleDelete(date: string) {
-    setScheduledDates((prev) => {
-      const next = new Set(prev);
-      next.delete(date);
-      return next;
-    });
-    setMonthEntries((prev) => prev.filter((e) => e.date !== date));
-    setIsModalOpen(false);
   }
 
   function isCurrentMonth(date: Date): boolean {
@@ -96,10 +65,6 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
       date.getMonth() === activeStartDate.getMonth() &&
       date.getFullYear() === activeStartDate.getFullYear()
     );
-  }
-
-  function isDateBlocked(dateStr: string): boolean {
-    return !!schedulingLimit && dateStr > schedulingLimit;
   }
 
   function tileDisabled({ date, view }: TileArgs) {
@@ -136,6 +101,10 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
     if (!isAllowedDay(date) || !isCurrentMonth(date)) return "tile-disabled";
     return "tile-allowed";
   }
+
+  const selectedDate = selectedDateStr
+    ? (() => { const [y, m, d] = selectedDateStr.split("-").map(Number); return new Date(y, m - 1, d); })()
+    : null;
 
   return (
     <>
@@ -174,9 +143,7 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
             <li
               key={e.date}
               onClick={() => {
-                const [y, m, d] = e.date.split("-").map(Number);
-                setSelectedDate(new Date(y, m - 1, d));
-                setEntry(e);
+                setSelectedDateStr(e.date);
                 setIsModalOpen(true);
               }}
               className="flex items-center justify-between px-4 py-3 rounded-2xl cursor-pointer"
@@ -205,12 +172,12 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
         {isModalOpen && (
           <DayModal
             date={selectedDate}
-            entry={entry}
+            entry={isDayLoading ? undefined : dayEntry ?? null}
             isAdmin={isAdmin}
-            isBlocked={selectedDateBlocked}
+            isBlocked={selectedDateStr ? isDateBlocked(selectedDateStr) : false}
             onClose={() => setIsModalOpen(false)}
-            onSave={handleSave}
-            onDelete={handleDelete}
+            onSave={() => setIsModalOpen(false)}
+            onDelete={() => setIsModalOpen(false)}
           />
         )}
       </AnimatePresence>

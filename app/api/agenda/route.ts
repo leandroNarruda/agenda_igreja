@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import type { AgendaEntry } from "@/lib/agenda";
 import { auth } from "@/auth";
+import { publishAgendaUpdated } from "@/lib/realtime/publish";
 
 async function getCollection() {
   const client = await clientPromise;
@@ -29,6 +30,7 @@ export async function DELETE(req: NextRequest) {
   if (!date) return NextResponse.json({ error: "Parâmetro 'date' obrigatório" }, { status: 400 });
   const col = await getCollection();
   await col.deleteOne({ date });
+  void publishAgendaUpdated({ date, action: 'delete' });
   return new NextResponse(null, { status: 204 });
 }
 
@@ -43,5 +45,6 @@ export async function POST(req: NextRequest) {
 
   const col = await getCollection();
   await col.updateOne({ date: body.date }, { $set: body }, { upsert: true });
+  void publishAgendaUpdated({ date: body.date, action: 'upsert' });
   return NextResponse.json(body, { status: 201 });
 }
