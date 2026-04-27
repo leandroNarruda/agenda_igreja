@@ -13,6 +13,16 @@ import DayModal from "./DayModal";
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
+function todayInBrasilia(): string {
+  // Brasília é UTC-3 — forçamos o offset para obter YYYY-MM-DD correto às 0h local
+  const now = new Date();
+  const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const y = brasilia.getFullYear();
+  const m = String(brasilia.getMonth() + 1).padStart(2, "0");
+  const d = String(brasilia.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function formatEntryDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);
@@ -129,14 +139,14 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
       </motion.div>
 
       {/* Lista do mês */}
-      {monthEntries.length > 0 && (
+      {monthEntries.filter((e) => e.date >= todayInBrasilia()).length > 0 && (
         <motion.ul
           className="mt-6 w-full space-y-2"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.2 }}
         >
-          {monthEntries.map((e) => (
+          {monthEntries.filter((e) => e.date >= todayInBrasilia()).map((e) => (
             <li
               key={e.date}
               onClick={() => {
