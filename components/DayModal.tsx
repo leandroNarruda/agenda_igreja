@@ -23,6 +23,7 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
   const [mode, setMode] = useState<Mode>("view");
   const [preacher, setPreacher] = useState("");
   const [serviceValue, setServiceValue] = useState("");
+  const [singer, setSinger] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -30,9 +31,11 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
     if (entry) {
       setPreacher(entry.preacher);
       setServiceValue(entry.service);
+      setSinger(entry.singer ?? "");
     } else {
       setPreacher("");
       setServiceValue(date ? (SERVICE_LABELS[date.getDay()] ?? "") : "");
+      setSinger("");
     }
     setMode("view");
   }, [entry, date]);
@@ -63,6 +66,7 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
       date: dateKey,
       preacher: preacher.trim(),
       service: serviceValue.trim() || service,
+      ...(singer.trim() && { singer: singer.trim() }),
     };
     const res = await fetch("/api/agenda", {
       method: "POST",
@@ -171,6 +175,14 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
                   <p className="text-2xl font-black leading-tight" style={{ color: "#e8f9a2" }}>
                     {entry.preacher}
                   </p>
+                  {entry.singer && (
+                    <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(248,161,63,0.2)" }}>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] mb-1" style={{ color: "rgba(165,170,217,0.5)" }}>
+                        ♪ Cantor(a)
+                      </p>
+                      <p className="text-base font-bold" style={{ color: "#e8f9a2" }}>{entry.singer}</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-4 gap-4">
@@ -204,7 +216,7 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
                 {entry && isAdmin && !isBlocked && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setPreacher(entry.preacher); setServiceValue(entry.service); setMode("edit"); }}
+                      onClick={() => { setPreacher(entry.preacher); setServiceValue(entry.service); setSinger(entry.singer ?? ""); setMode("edit"); }}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-colors"
                       style={{ border: "1px solid rgba(126,86,134,0.35)", color: "rgba(165,170,217,0.7)", background: "transparent" }}
                       onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(126,86,134,0.15)"; (e.currentTarget as HTMLElement).style.color = "#a5aad9"; }}
@@ -300,6 +312,27 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
                   onChange={(e) => setServiceValue(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
                   placeholder="Ex: Culto do Dia do Senhor"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-colors"
+                  style={{
+                    background: "rgba(126,86,134,0.1)",
+                    border: "1px solid rgba(126,86,134,0.35)",
+                    color: "#e8f9a2",
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#7e5686"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(126,86,134,0.35)"; }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-2 uppercase tracking-widest" style={{ color: "rgba(165,170,217,0.6)" }}>
+                  Nome do cantor (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={singer}
+                  onChange={(e) => setSinger(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                  placeholder="Ex: João Batista"
                   className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-colors"
                   style={{
                     background: "rgba(126,86,134,0.1)",
