@@ -102,8 +102,14 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
     if (!isAllowedDay(date)) return null;
     const key = toLocalDateString(date);
     if (!scheduledDates.has(key)) return null;
+    const isPast = key < todayInBrasilia();
     return (
-      <span className="block w-2 h-2 rounded-full mx-auto mt-0.5" style={{ background: "#f8a13f", boxShadow: "0 0 6px rgba(248,161,63,0.7)" }} />
+      <span
+        className="block w-2 h-2 rounded-full mx-auto mt-0.5"
+        style={isPast
+          ? { background: "#4ade80", boxShadow: "0 0 6px rgba(74,222,128,0.7)" }
+          : { background: "#f8a13f", boxShadow: "0 0 6px rgba(248,161,63,0.7)" }}
+      />
     );
   }
 
