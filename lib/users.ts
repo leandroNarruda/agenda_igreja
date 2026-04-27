@@ -6,6 +6,7 @@ export interface User {
   email: string;
   name: string;
   passwordHash: string;
+  role: "admin" | "superadmin";
   createdAt: Date;
 }
 
@@ -18,7 +19,8 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function createUser(
   email: string,
   name: string,
-  passwordHash: string
+  passwordHash: string,
+  role: "admin" | "superadmin" = "admin"
 ): Promise<void> {
   const client = await clientPromise;
   const col = client.db("agenda-igreja").collection<User>("users");
@@ -28,6 +30,7 @@ export async function createUser(
     email,
     name,
     passwordHash,
+    role,
     createdAt: new Date(),
   });
 }

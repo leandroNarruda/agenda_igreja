@@ -38,31 +38,37 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
   const [entry, setEntry] = useState<AgendaEntry | null | undefined>(undefined);
+  const [selectedDateBlocked, setSelectedDateBlocked] = useState(false);
   const [monthEntries, setMonthEntries] = useState<AgendaEntry[]>([]);
   const [scheduledDates, setScheduledDates] = useState<Set<string>>(new Set());
+  const [schedulingLimit, setSchedulingLimit] = useState<string | null>(null);
 
   useEffect(() => {
     const year = activeStartDate.getFullYear();
     const month = String(activeStartDate.getMonth() + 1).padStart(2, "0");
     fetch(`/api/agenda/month?year=${year}&month=${month}`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((entries: AgendaEntry[]) => {
+      .then((r) => (r.ok ? r.json() : { entries: [], schedulingLimit: null }))
+      .then(({ entries, schedulingLimit: limit }: { entries: AgendaEntry[]; schedulingLimit: string | null }) => {
         setMonthEntries(entries.slice().sort((a, b) => a.date.localeCompare(b.date)));
         setScheduledDates(new Set(entries.map((e) => e.date)));
+        setSchedulingLimit(limit);
       })
       .catch(() => {
         setMonthEntries([]);
         setScheduledDates(new Set());
+        setSchedulingLimit(null);
       });
   }, [activeStartDate]);
 
   async function handleDayClick(date: Date) {
     if (!isAllowedDay(date)) return;
+    const dateStr = toLocalDateString(date);
     setSelectedDate(date);
+    setSelectedDateBlocked(isDateBlocked(dateStr));
     setEntry(undefined);
     setIsModalOpen(true);
 
-    const res = await fetch(`/api/agenda?date=${toLocalDateString(date)}`);
+    const res = await fetch(`/api/agenda?date=${dateStr}`);
     setEntry(res.ok ? await res.json() : null);
   }
 
@@ -92,6 +98,10 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
     );
   }
 
+  function isDateBlocked(dateStr: string): boolean {
+    return !!schedulingLimit && dateStr > schedulingLimit;
+  }
+
   function tileDisabled({ date, view }: TileArgs) {
     if (view !== "month") return false;
     return !isAllowedDay(date) || !isCurrentMonth(date);
@@ -101,6 +111,14 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
     if (view !== "month") return null;
     if (!isAllowedDay(date)) return null;
     const key = toLocalDateString(date);
+    const blocked = isDateBlocked(key);
+    if (blocked) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 mx-auto mt-0.5" viewBox="0 0 20 20" fill="rgba(186,60,61,0.7)">
+          <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524L13.477 14.89zm1.414-1.414L6.524 5.11A6 6 0 0114.89 13.476zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+        </svg>
+      );
+    }
     if (!scheduledDates.has(key)) return null;
     const isPast = key < todayInBrasilia();
     return (
@@ -189,6 +207,7 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
             date={selectedDate}
             entry={entry}
             isAdmin={isAdmin}
+            isBlocked={selectedDateBlocked}
             onClose={() => setIsModalOpen(false)}
             onSave={handleSave}
             onDelete={handleDelete}

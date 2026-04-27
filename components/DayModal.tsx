@@ -11,6 +11,7 @@ interface DayModalProps {
   date: Date | null;
   entry: AgendaEntry | null | undefined;
   isAdmin?: boolean;
+  isBlocked?: boolean;
   onClose: () => void;
   onSave: (entry: AgendaEntry) => void;
   onDelete: (date: string) => void;
@@ -18,7 +19,7 @@ interface DayModalProps {
 
 type Mode = "view" | "edit" | "confirm-delete";
 
-export default function DayModal({ date, entry, isAdmin = false, onClose, onSave, onDelete }: DayModalProps) {
+export default function DayModal({ date, entry, isAdmin = false, isBlocked = false, onClose, onSave, onDelete }: DayModalProps) {
   const [mode, setMode] = useState<Mode>("view");
   const [preacher, setPreacher] = useState("");
   const [serviceValue, setServiceValue] = useState("");
@@ -176,7 +177,7 @@ export default function DayModal({ date, entry, isAdmin = false, onClose, onSave
                   <p className="text-sm italic" style={{ color: "rgba(165,170,217,0.5)" }}>
                     Nenhum pregador agendado
                   </p>
-                  {isAdmin && (
+                  {isAdmin && !isBlocked && (
                     <button
                       onClick={() => { setPreacher(""); setServiceValue(SERVICE_LABELS[date!.getDay()] ?? ""); setMode("edit"); }}
                       className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all"
@@ -190,12 +191,17 @@ export default function DayModal({ date, entry, isAdmin = false, onClose, onSave
                       Agendar pregador
                     </button>
                   )}
+                  {isBlocked && (
+                    <p className="text-xs italic text-center" style={{ color: "rgba(186,60,61,0.6)" }}>
+                      Agendamento encerrado para este período
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* Ações */}
               <div className="mt-5 space-y-2">
-                {entry && isAdmin && (
+                {entry && isAdmin && !isBlocked && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setPreacher(entry.preacher); setServiceValue(entry.service); setMode("edit"); }}

@@ -12,11 +12,15 @@ export async function GET(req: NextRequest) {
 
   const prefix = `${year}-${month.padStart(2, "0")}`;
   const client = await clientPromise;
-  const col = client.db("agenda-igreja").collection<AgendaEntry>("entries");
+  const db = client.db("agenda-igreja");
 
-  const entries = await col
-    .find({ date: { $regex: `^${prefix}` } }, { projection: { _id: 0 } })
-    .toArray();
+  const [entries, settingDoc] = await Promise.all([
+    db.collection<AgendaEntry>("entries")
+      .find({ date: { $regex: `^${prefix}` } }, { projection: { _id: 0 } })
+      .toArray(),
+    db.collection("settings").findOne({ _id: "schedulingLimit" as unknown as never }),
+  ]);
 
-  return NextResponse.json(entries);
+  const schedulingLimit = settingDoc ? (settingDoc as unknown as { value: string }).value : null;
+  return NextResponse.json({ entries, schedulingLimit });
 }
