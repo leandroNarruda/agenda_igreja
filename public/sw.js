@@ -3,7 +3,6 @@ const VERSION_URL = '/version.json';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/icon.svg',
 ];
 
 self.addEventListener('install', (event) => {

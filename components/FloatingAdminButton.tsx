@@ -8,7 +8,7 @@ export default function FloatingAdminButton() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (status === "authenticated" || pathname === "/login" || pathname.startsWith("/admin")) return null;
+  if (status !== "unauthenticated" || pathname === "/login" || pathname.startsWith("/admin")) return null;
 
   return (
     <button

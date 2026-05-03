@@ -24,6 +24,18 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Agenda Igreja",
   },
+  icons: {
+    icon: [
+      { url: "/images/logos/logo-agenda-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/images/logos/logo-agenda-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/images/logos/logo-agenda-152.png", sizes: "152x152", type: "image/png" },
+      { url: "/images/logos/logo-agenda-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/images/logos/logo-agenda-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/images/logos/logo-agenda-1024.png", sizes: "1024x1024", type: "image/png" },
+    ],
+  },
   openGraph: {
     title: "Agenda Igreja Santa Tereza",
     description: "Calendário de pregações da Igreja do Santa Tereza — veja quem prega em cada culto de domingo, quarta e sábado.",
