@@ -1,14 +1,12 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 
 export default function FloatingAdminButton() {
-  const { status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
 
-  if (status !== "unauthenticated" || pathname === "/login" || pathname.startsWith("/admin")) return null;
+  if (pathname === "/login" || pathname.startsWith("/admin")) return null;
 
   return (
     <button

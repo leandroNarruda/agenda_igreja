@@ -12,6 +12,7 @@ interface DayModalProps {
   date: Date | null;
   entry: AgendaEntry | null | undefined;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   isBlocked?: boolean;
   onClose: () => void;
   onSave: () => void;
@@ -20,7 +21,7 @@ interface DayModalProps {
 
 type Mode = "view" | "edit" | "confirm-delete";
 
-export default function DayModal({ date, entry, isAdmin = false, isBlocked = false, onClose, onSave, onDelete }: DayModalProps) {
+export default function DayModal({ date, entry, isAdmin = false, isSuperAdmin = false, isBlocked = false, onClose, onSave, onDelete }: DayModalProps) {
   const [mode, setMode] = useState<Mode>("view");
   const [preacher, setPreacher] = useState("");
   const [serviceValue, setServiceValue] = useState("");
@@ -203,7 +204,7 @@ export default function DayModal({ date, entry, isAdmin = false, isBlocked = fal
 
               {/* Ações */}
               <div className="mt-5 space-y-2">
-                {entry && isAdmin && !isBlocked && (
+                {entry && isSuperAdmin && !isBlocked && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setPreacher(entry.preacher); setServiceValue(entry.service); setSinger(entry.singer ?? ""); setMode("edit"); }}

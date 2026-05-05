@@ -30,7 +30,7 @@ function formatEntryDate(dateStr: string): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
+export default function Calendar({ isAdmin = false, isSuperAdmin = false }: { isAdmin?: boolean; isSuperAdmin?: boolean }) {
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [value, setValue] = useState<Value>(new Date());
@@ -174,6 +174,7 @@ export default function Calendar({ isAdmin = false }: { isAdmin?: boolean }) {
             date={selectedDate}
             entry={isDayLoading ? undefined : dayEntry ?? null}
             isAdmin={isAdmin}
+            isSuperAdmin={isSuperAdmin}
             isBlocked={selectedDateStr ? isDateBlocked(selectedDateStr) : false}
             onClose={() => setIsModalOpen(false)}
             onSave={() => setIsModalOpen(false)}

@@ -125,7 +125,7 @@ export default function AdminClient({ isSuperAdmin }: { isSuperAdmin: boolean })
 
       <main className="w-full max-w-sm relative z-10 flex flex-col items-center">
         {isSuperAdmin && <SchedulingLimitPanel />}
-        <Calendar isAdmin />
+        <Calendar isAdmin isSuperAdmin={isSuperAdmin} />
       </main>
     </div>
   );
